@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔐 Secure Messenger</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: url('background.png');
+      background-size: cover;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1 {
+      color: #fff;
+      text-align: center;
+      margin: 10px 0;
+    }
+    .container {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      align-items: flex-start;
+      flex-wrap: nowrap;
+      width: 90%;
+      max-width: 950px;
+      padding: 10px;
+    }
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+      flex: 1;
+      min-width: 300px;
+      max-width: 450px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    label { font-weight: 600; }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      max-height: 200px;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 16px;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    select {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+    button {
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+      transition: 0.3s;
+      width: 100%;
+    }
+    button:hover { opacity: 0.9; }
+    .output {
+      border: 2px dashed #ccc;
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 40px;
+      font-size: 14px;
+      background: #f9f9f9;
+      word-wrap: break-word;
+    }
+    .info {
+      font-size: 13px;
+      color: #444;
+      font-style: italic;
+    }
+    @media (max-width: 768px) {
+      .container { flex-direction: column; align-items: center; }
+      .card { width: 90%; }
+      h1 { font-size: 20px; margin: 15px 0; }
+      button { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🔐 Secure Messenger</h1>
+  <div class="container">
+    <!-- Encrypt Section -->
+    <div class="card">
+      <h2>Encrypt</h2>
+      <label>Choose Encryption Technique:</label>
+      <select id="cipherType">
+        <option value="AES">AES</option>
+        <option value="Caesar">Caesar Cipher</option>
+        <option value="Vigenere">Vigenère Cipher</option>
+        <option value="Playfair">Playfair Cipher</option>
+        <option value="Hill">Hill Cipher</option>
+      </select>
+
+      <label>Message:</label>
+      <textarea id="message" placeholder="Enter your message..."></textarea>
+      <button onclick="encrypt()">Encrypt</button>
+      <div class="output" id="encryptedOutput"></div>
+      <p class="info" id="encInfo">Tip: Press Enter to Encrypt/Decrypt • Shift+Enter for newline • Ctrl+Enter also works</p>
+    </div>
+
+    <!-- Decrypt Section -->
+    <div class="card">
+      <h2>Decrypt</h2>
+      <label>Encrypted Data:</label>
+      <textarea id="encryptedInput" placeholder="Paste encrypted data..."></textarea>
+      <button onclick="decrypt()">Decrypt</button>
+      <div class="output" id="decryptedOutput"></div>
+      <p class="info" id="decInfo"></p>
+    </div>
+  </div>
+
+  <script>
+    const FIXED_KEY = "mySecretKey123";
+
+    // ---------- Encryption Algorithms ----------
+    function aesEncrypt(msg) {
+      return CryptoJS.AES.encrypt(msg, FIXED_KEY).toString();
+    }
+    function aesDecrypt(cipher) {
+      try {
+        let bytes = CryptoJS.AES.decrypt(cipher, FIXED_KEY);
+        let original = bytes.toString(CryptoJS.enc.Utf8);
+        return original || "❌ Invalid AES data!";
+      } catch {
+        return "❌ Invalid AES data!";
+      }
+    }
+
+    function caesarEncrypt(msg, shift = 3) {
+      return msg.replace(/[a-z]/gi, c =>
+        String.fromCharCode(
+          (c <= "Z" ? 90 : 122) >= c.charCodeAt(0) + shift
+            ? c.charCodeAt(0) + shift
+            : c.charCodeAt(0) + shift - 26
+        )
+      );
+    }
+    function caesarDecrypt(cipher, shift = 3) {
+      return caesarEncrypt(cipher, 26 - shift);
+    }
+
+    function vigenereEncrypt(msg, key = "KEY") {
+      key = key.toUpperCase();
+      let res = "", j = 0;
+      for (let i = 0; i < msg.length; i++) {
+        let c = msg[i];
+        if (/[A-Z]/i.test(c)) {
+          let code = msg.charCodeAt(i);
+          let shift = key.charCodeAt(j % key.length) - 65;
+          if (/[A-Z]/.test(c))
+            c = String.fromCharCode(((code - 65 + shift) % 26) + 65);
+          else
+            c = String.fromCharCode(((code - 97 + shift) % 26) + 97);
+          j++;
+        }
+        res += c;
+      }
+      return res;
+    }
+    function vigenereDecrypt(cipher, key = "KEY") {
+      key = key.toUpperCase();
+      let res = "", j = 0;
+      for (let i = 0; i < cipher.length; i++) {
+        let c = cipher[i];
+        if (/[A-Z]/i.test(c)) {
+          let code = cipher.charCodeAt(i);
+          let shift = key.charCodeAt(j % key.length) - 65;
+          if (/[A-Z]/.test(c))
+            c = String.fromCharCode(((code - 65 - shift + 26) % 26) + 65);
+          else
+            c = String.fromCharCode(((code - 97 - shift + 26) % 26) + 97);
+          j++;
+        }
+        res += c;
+      }
+      return res;
+    }
+
+    // Dummy Playfair and Hill (placeholders)
+    function playfairEncrypt(msg) { return btoa(msg); }
+    function playfairDecrypt(cipher) { try { return atob(cipher); } catch { return "Invalid Data"; } }
+    function hillEncrypt(msg) { return msg.split("").reverse().join(""); }
+    function hillDecrypt(cipher) { return cipher.split("").reverse().join(""); }
+
+    // ---------- Main Functions ----------
+    function encrypt() {
+      let message = document.getElementById("message").value;
+      let type = document.getElementById("cipherType").value;
+      if (!message) { alert("Please enter a message"); return; }
+      let encrypted = "";
+      switch (type) {
+        case "AES": encrypted = aesEncrypt(message); break;
+        case "Caesar": encrypted = caesarEncrypt(message); break;
+        case "Vigenere": encrypted = vigenereEncrypt(message); break;
+        case "Playfair": encrypted = playfairEncrypt(message); break;
+        case "Hill": encrypted = hillEncrypt(message); break;
+      }
+      document.getElementById("encryptedOutput").innerText = encrypted;
+      document.getElementById("encryptedInput").value = encrypted;
+      document.getElementById("encInfo").innerText = "Encrypted using " + type + " • Enter=Encrypt/Decrypt • Shift+Enter=newline";
+    }
+
+    function decrypt() {
+      let cipher = document.getElementById("encryptedInput").value;
+      let type = document.getElementById("cipherType").value;
+      if (!cipher) { alert("Please paste encrypted data"); return; }
+      let decrypted = "";
+      try {
+        switch (type) {
+          case "AES": decrypted = aesDecrypt(cipher); break;
+          case "Caesar": decrypted = caesarDecrypt(cipher); break;
+          case "Vigenere": decrypted = vigenereDecrypt(cipher); break;
+          case "Playfair": decrypted = playfairDecrypt(cipher); break;
+          case "Hill": decrypted = hillDecrypt(cipher); break;
+        }
+      } catch { decrypted = "❌ Invalid data!"; }
+      document.getElementById("decryptedOutput").innerText = decrypted;
+      document.getElementById("decInfo").innerText = "Decrypted using " + type;
+    }
+
+    // ---------- Keyboard: Enter works; Shift+Enter newline; Ctrl+Enter also works ----------
+    let toggleEncryptDecrypt = true; // true = encrypt, false = decrypt
+
+    document.addEventListener('keydown', function(event) {
+      const active = document.activeElement;
+      const inTextarea = active && (active.id === "message" || active.id === "encryptedInput");
+      if (!inTextarea) return;
+
+      if (event.key === "Enter") {
+        if (event.shiftKey) {
+          // allow newline
+          return;
+        }
+        // Trigger action on Enter (and also when Ctrl+Enter)
+        event.preventDefault();
+        if (event.ctrlKey) {
+          // optional: still toggle on Ctrl+Enter (same behavior)
+        }
+        if (toggleEncryptDecrypt) { encrypt(); } else { decrypt(); }
+        toggleEncryptDecrypt = !toggleEncryptDecrypt;
+      }
+    });
+  </script>
+</body>
+</html>
